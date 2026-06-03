@@ -1,10 +1,12 @@
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+import os
 
-from src.db2.connection import build_connection_string, test_connection
+from src.db2.connection import build_jdbc_url, test_connection as verify_connection, _get_jdbc_jars
 
 
-def test_build_connection_string_includes_uid_and_pwd():
+def test_build_jdbc_url_basic():
+    """Test basic JDBC URL construction"""
     config = {
         "database": "TESTDB",
         "hostname": "localhost",
@@ -13,20 +15,12 @@ def test_build_connection_string_includes_uid_and_pwd():
         "password": "testpass",
         "ssl_enabled": False,
     }
-    conn_str = build_connection_string(config)
-    assert "DATABASE=TESTDB;" in conn_str
-    assert "HOSTNAME=localhost;" in conn_str
-    assert "PORT=50000;" in conn_str
-    assert "PROTOCOL=TCPIP;" in conn_str
-    assert "UID=testuser;" in conn_str
-    assert "PWD=testpass;" in conn_str
-    assert "SECURITY=SSL;" not in conn_str
-    # Verify default connection reliability parameters are included
-    assert "ConnectTimeout=30;" in conn_str
-    assert "KeepAlive=1;" in conn_str
+    jdbc_url = build_jdbc_url(config)
+    assert jdbc_url.startswith("jdbc:db2://localhost:50000/TESTDB")
 
 
-def test_build_connection_string_with_ssl():
+def test_build_jdbc_url_with_ssl():
+    """Test JDBC URL with SSL enabled"""
     config = {
         "database": "TESTDB",
         "hostname": "localhost",
@@ -35,12 +29,13 @@ def test_build_connection_string_with_ssl():
         "password": "testpass",
         "ssl_enabled": True,
     }
-    conn_str = build_connection_string(config)
-    assert "SECURITY=SSL;" in conn_str
+    jdbc_url = build_jdbc_url(config)
+    assert "jdbc:db2://localhost:50000/TESTDB" in jdbc_url
+    assert "sslConnection=true" in jdbc_url
 
 
-def test_build_connection_string_with_custom_timeout():
-    """Test custom connect timeout"""
+def test_build_jdbc_url_with_custom_timeout():
+    """Test JDBC URL with custom connect timeout"""
     config = {
         "database": "TESTDB",
         "hostname": "localhost",
@@ -49,12 +44,12 @@ def test_build_connection_string_with_custom_timeout():
         "password": "testpass",
         "connect_timeout": 60,
     }
-    conn_str = build_connection_string(config)
-    assert "ConnectTimeout=60;" in conn_str
+    jdbc_url = build_jdbc_url(config)
+    assert "loginTimeout=60" in jdbc_url
 
 
-def test_build_connection_string_with_keepalive_disabled():
-    """Test with KeepAlive disabled"""
+def test_build_jdbc_url_with_keepalive_disabled():
+    """Test JDBC URL with KeepAlive disabled"""
     config = {
         "database": "TESTDB",
         "hostname": "localhost",
@@ -63,11 +58,11 @@ def test_build_connection_string_with_keepalive_disabled():
         "password": "testpass",
         "keepalive": False,
     }
-    conn_str = build_connection_string(config)
-    assert "KeepAlive=1;" not in conn_str
+    jdbc_url = build_jdbc_url(config)
+    assert "enableClientAffinitiesList" not in jdbc_url
 
 
-def test_build_connection_string_rejects_missing_or_empty_credentials():
+def test_build_jdbc_url_rejects_missing_or_empty_credentials():
     """Missing or empty credentials should raise ValueError"""
     # Both missing
     config = {
@@ -76,7 +71,7 @@ def test_build_connection_string_rejects_missing_or_empty_credentials():
         "port": 50000,
     }
     with pytest.raises(ValueError, match="Username and password are required"):
-        build_connection_string(config)
+        build_jdbc_url(config)
     
     # Only username
     config_no_password = {
@@ -86,7 +81,7 @@ def test_build_connection_string_rejects_missing_or_empty_credentials():
         "username": "testuser",
     }
     with pytest.raises(ValueError, match="Username and password are required"):
-        build_connection_string(config_no_password)
+        build_jdbc_url(config_no_password)
     
     # Only password
     config_no_username = {
@@ -96,7 +91,7 @@ def test_build_connection_string_rejects_missing_or_empty_credentials():
         "password": "testpass",
     }
     with pytest.raises(ValueError, match="Username and password are required"):
-        build_connection_string(config_no_username)
+        build_jdbc_url(config_no_username)
     
     # Empty username
     config_empty_username = {
@@ -107,7 +102,7 @@ def test_build_connection_string_rejects_missing_or_empty_credentials():
         "password": "testpass",
     }
     with pytest.raises(ValueError, match="Username and password are required"):
-        build_connection_string(config_empty_username)
+        build_jdbc_url(config_empty_username)
     
     # Empty password
     config_empty_password = {
@@ -118,55 +113,127 @@ def test_build_connection_string_rejects_missing_or_empty_credentials():
         "password": "",
     }
     with pytest.raises(ValueError, match="Username and password are required"):
-        build_connection_string(config_empty_password)
+        build_jdbc_url(config_empty_password)
 
 
-def test_connection_passes_empty_strings_to_connector():
-    """Test that credentials are in connection string, not passed separately"""
+def test_get_jdbc_jars_from_config():
+    """Test getting JDBC JAR paths from config"""
+    with patch('os.path.isfile', return_value=True):
+        config = {
+            "jdbc_jar_path": "/path/to/db2jcc.jar",
+            "license_jar_path": "/path/to/db2jcc_license_cisuz.jar",
+        }
+        jars = _get_jdbc_jars(config)
+        assert len(jars) == 2
+        assert "/path/to/db2jcc.jar" in jars
+        assert "/path/to/db2jcc_license_cisuz.jar" in jars
+
+
+def test_get_jdbc_jars_from_env():
+    """Test getting JDBC JAR paths from environment variables"""
+    with patch('os.path.isfile', return_value=True):
+        with patch.dict(os.environ, {
+            'DB2_JDBC_JAR_PATH': '/env/path/db2jcc.jar',
+            'DB2_LICENSE_JAR_PATH': '/env/path/db2jcc_license_cisuz.jar'
+        }):
+            config = {}
+            jars = _get_jdbc_jars(config)
+            assert len(jars) == 2
+            assert "/env/path/db2jcc.jar" in jars
+            assert "/env/path/db2jcc_license_cisuz.jar" in jars
+
+
+def test_get_jdbc_jars_config_overrides_env():
+    """Test that config values override environment variables"""
+    with patch('os.path.isfile', return_value=True):
+        with patch.dict(os.environ, {
+            'DB2_JDBC_JAR_PATH': '/env/path/db2jcc.jar',
+            'DB2_LICENSE_JAR_PATH': '/env/path/db2jcc_license_cisuz.jar'
+        }):
+            config = {
+                "jdbc_jar_path": "/config/path/db2jcc.jar",
+                "license_jar_path": "/config/path/db2jcc_license_cisuz.jar",
+            }
+            jars = _get_jdbc_jars(config)
+            assert "/config/path/db2jcc.jar" in jars
+            assert "/config/path/db2jcc_license_cisuz.jar" in jars
+
+
+def test_get_jdbc_jars_raises_when_not_provided():
+    """Test that ValueError is raised when JAR paths are not provided"""
+    config = {}
+    with pytest.raises(ValueError, match="JDBC driver JAR paths not provided"):
+        _get_jdbc_jars(config)
+
+
+def test_get_jdbc_jars_raises_when_file_not_found():
+    """Test that FileNotFoundError is raised when JAR file doesn't exist"""
+    config = {
+        "jdbc_jar_path": "/nonexistent/db2jcc.jar",
+        "license_jar_path": "/nonexistent/db2jcc_license_cisuz.jar",
+    }
+    with pytest.raises(FileNotFoundError, match="JDBC driver JAR file not found"):
+        _get_jdbc_jars(config)
+
+
+def test_connection_uses_jaydebeapi():
+    """Test that connection uses jaydebeapi.connect with correct parameters"""
     mock_connector = Mock()
     mock_connector.connect = Mock(return_value="mock_connection")
     
-    config = {
-        "database": "TESTDB",
-        "hostname": "localhost",
-        "port": 50000,
-        "username": "testuser",
-        "password": "testpass",
-    }
-    
-    ok, message, conn = test_connection(config, connector=mock_connector)
-    
-    assert ok is True
-    assert message == "Connection successful"
-    assert conn == "mock_connection"
-    
-    # Verify connect was called with connection string and empty strings
-    mock_connector.connect.assert_called_once()
-    call_args = mock_connector.connect.call_args[0]
-    assert len(call_args) == 3
-    assert "UID=testuser;" in call_args[0]
-    assert "PWD=testpass;" in call_args[0]
-    assert call_args[1] == ""
-    assert call_args[2] == ""
+    with patch('os.path.isfile', return_value=True):
+        config = {
+            "database": "TESTDB",
+            "hostname": "localhost",
+            "port": 50000,
+            "username": "testuser",
+            "password": "testpass",
+            "jdbc_jar_path": "/path/to/db2jcc.jar",
+            "license_jar_path": "/path/to/db2jcc_license_cisuz.jar",
+        }
+        
+        ok, message, conn = verify_connection(config, connector=mock_connector)
+        
+        assert ok is True
+        assert message == "Connection successful"
+        assert conn == "mock_connection"
+        
+        # Verify connect was called with correct parameters
+        mock_connector.connect.assert_called_once()
+        call_args = mock_connector.connect.call_args[0]
+        call_kwargs = mock_connector.connect.call_args[1] if mock_connector.connect.call_args[1] else {}
+        
+        # First arg should be driver class
+        assert call_args[0] == "com.ibm.db2.jcc.DB2Driver"
+        # Second arg should be JDBC URL
+        assert "jdbc:db2://localhost:50000/TESTDB" in call_args[1]
+        # Third arg should be [username, password]
+        assert call_args[2] == ["testuser", "testpass"]
+        # Fourth arg should be list of JARs
+        assert len(call_args[3]) == 2
 
 
 def test_connection_handles_error():
+    """Test that connection handles errors properly"""
     mock_connector = Mock()
     mock_connector.connect = Mock(side_effect=Exception("Connection error"))
     
-    config = {
-        "database": "TESTDB",
-        "hostname": "localhost",
-        "port": 50000,
-        "username": "testuser",
-        "password": "testpass",
-    }
-    
-    ok, message, conn = test_connection(config, connector=mock_connector)
-    
-    assert ok is False
-    assert "Connection failed:" in message
-    assert conn is None
+    with patch('os.path.isfile', return_value=True):
+        config = {
+            "database": "TESTDB",
+            "hostname": "localhost",
+            "port": 50000,
+            "username": "testuser",
+            "password": "testpass",
+            "jdbc_jar_path": "/path/to/db2jcc.jar",
+            "license_jar_path": "/path/to/db2jcc_license_cisuz.jar",
+        }
+        
+        ok, message, conn = verify_connection(config, connector=mock_connector)
+        
+        assert ok is False
+        assert "Connection failed:" in message
+        assert conn is None
 
 
 def test_connection_retries_on_transient_errors():
@@ -181,23 +248,26 @@ def test_connection_retries_on_transient_errors():
         ]
     )
     
-    config = {
-        "database": "TESTDB",
-        "hostname": "localhost",
-        "port": 50000,
-        "username": "testuser",
-        "password": "testpass",
-        "connection_retries": 3,
-        "retry_delay_seconds": 0.1,  # Short delay for testing
-    }
-    
-    ok, message, conn = test_connection(config, connector=mock_connector)
-    
-    assert ok is True
-    assert message == "Connection successful"
-    assert conn == "mock_connection"
-    # Verify connect was called 3 times (2 failures + 1 success)
-    assert mock_connector.connect.call_count == 3
+    with patch('os.path.isfile', return_value=True):
+        config = {
+            "database": "TESTDB",
+            "hostname": "localhost",
+            "port": 50000,
+            "username": "testuser",
+            "password": "testpass",
+            "jdbc_jar_path": "/path/to/db2jcc.jar",
+            "license_jar_path": "/path/to/db2jcc_license_cisuz.jar",
+            "connection_retries": 3,
+            "retry_delay_seconds": 0.1,  # Short delay for testing
+        }
+        
+        ok, message, conn = verify_connection(config, connector=mock_connector)
+        
+        assert ok is True
+        assert message == "Connection successful"
+        assert conn == "mock_connection"
+        # Verify connect was called 3 times (2 failures + 1 success)
+        assert mock_connector.connect.call_count == 3
 
 
 def test_connection_does_not_retry_non_transient_errors():
@@ -208,23 +278,26 @@ def test_connection_does_not_retry_non_transient_errors():
         side_effect=Exception("SQL30082N Security processing failed")
     )
     
-    config = {
-        "database": "TESTDB",
-        "hostname": "localhost",
-        "port": 50000,
-        "username": "testuser",
-        "password": "wrongpass",
-        "connection_retries": 3,
-        "retry_delay_seconds": 0.1,
-    }
-    
-    ok, message, conn = test_connection(config, connector=mock_connector)
-    
-    assert ok is False
-    assert "Connection failed:" in message
-    assert conn is None
-    # Verify connect was only called once (no retries)
-    assert mock_connector.connect.call_count == 1
+    with patch('os.path.isfile', return_value=True):
+        config = {
+            "database": "TESTDB",
+            "hostname": "localhost",
+            "port": 50000,
+            "username": "testuser",
+            "password": "wrongpass",
+            "jdbc_jar_path": "/path/to/db2jcc.jar",
+            "license_jar_path": "/path/to/db2jcc_license_cisuz.jar",
+            "connection_retries": 3,
+            "retry_delay_seconds": 0.1,
+        }
+        
+        ok, message, conn = verify_connection(config, connector=mock_connector)
+        
+        assert ok is False
+        assert "Connection failed:" in message
+        assert conn is None
+        # Verify connect was only called once (no retries)
+        assert mock_connector.connect.call_count == 1
 
 
 def test_connection_respects_max_retries():
@@ -235,20 +308,23 @@ def test_connection_respects_max_retries():
         side_effect=Exception("SQL30081N A communication error has been detected. ... *104*")
     )
     
-    config = {
-        "database": "TESTDB",
-        "hostname": "localhost",
-        "port": 50000,
-        "username": "testuser",
-        "password": "testpass",
-        "connection_retries": 2,
-        "retry_delay_seconds": 0.1,
-    }
-    
-    ok, message, conn = test_connection(config, connector=mock_connector)
-    
-    assert ok is False
-    assert "Connection failed:" in message
-    assert conn is None
-    # Verify connect was called exactly 2 times
-    assert mock_connector.connect.call_count == 2
+    with patch('os.path.isfile', return_value=True):
+        config = {
+            "database": "TESTDB",
+            "hostname": "localhost",
+            "port": 50000,
+            "username": "testuser",
+            "password": "testpass",
+            "jdbc_jar_path": "/path/to/db2jcc.jar",
+            "license_jar_path": "/path/to/db2jcc_license_cisuz.jar",
+            "connection_retries": 2,
+            "retry_delay_seconds": 0.1,
+        }
+        
+        ok, message, conn = verify_connection(config, connector=mock_connector)
+        
+        assert ok is False
+        assert "Connection failed:" in message
+        assert conn is None
+        # Verify connect was called exactly 2 times
+        assert mock_connector.connect.call_count == 2

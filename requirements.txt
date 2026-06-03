@@ -1,7 +1,7 @@
 streamlit
 pandas
-ibm_db
-ibm_db_dbi
+jaydebeapi
+JPype1
 python-dotenv
 pyyaml
 openpyxl
