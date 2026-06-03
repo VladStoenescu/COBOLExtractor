@@ -61,7 +61,7 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
     
     for attempt in range(max_retries):
         if attempt > 0:
-            LOGGER.info(f"DB connection retry attempt {attempt + 1}/{max_retries}")
+            LOGGER.info("DB connection retry attempt %d/%d", attempt + 1, max_retries)
             time.sleep(retry_delay)
         else:
             LOGGER.info("DB connection attempt")
@@ -69,7 +69,7 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
         try:
             conn = connector.connect(build_connection_string(config), "", "")
             if attempt > 0:
-                LOGGER.info(f"DB connection successful after {attempt + 1} attempts")
+                LOGGER.info("DB connection successful after %d attempts", attempt + 1)
             return True, "Connection successful", conn
         except Exception as exc:  # pragma: no cover
             last_error = exc
@@ -92,6 +92,6 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
                 LOGGER.error("DB connection failed: %s", safe_error_str)
                 break
             else:
-                LOGGER.warning(f"DB connection failed with retryable error (attempt {attempt + 1}/{max_retries}): {safe_error_str}")
+                LOGGER.warning("DB connection failed with retryable error (attempt %d/%d): %s", attempt + 1, max_retries, safe_error_str)
     
     return False, f"Connection failed: {last_error}", None
