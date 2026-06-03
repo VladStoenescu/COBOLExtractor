@@ -19,7 +19,7 @@ def test_build_connection_string_includes_uid_and_pwd():
     assert "PORT=50000;" in conn_str
     assert "PROTOCOL=TCPIP;" in conn_str
     assert "UID=testuser;" in conn_str
-    assert "******;" in conn_str
+    assert "PWD=testpass;" in conn_str
     assert "SECURITY=SSL;" not in conn_str
     # Verify default connection reliability parameters are included
     assert "ConnectTimeout=30;" in conn_str
@@ -145,7 +145,7 @@ def test_connection_passes_empty_strings_to_connector():
     call_args = mock_connector.connect.call_args[0]
     assert len(call_args) == 3
     assert "UID=testuser;" in call_args[0]
-    assert "******;" in call_args[0]
+    assert "PWD=testpass;" in call_args[0]
     assert call_args[1] == ""
     assert call_args[2] == ""
 

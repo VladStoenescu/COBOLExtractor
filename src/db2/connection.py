@@ -40,7 +40,7 @@ def build_connection_string(config: Dict[str, Any]) -> str:
         + f"PORT={config['port']};"
         + "PROTOCOL=TCPIP;"
         + f"UID={username};"
-        + f"******;"
+        + f"PWD={password};"
         + f"ConnectTimeout={connect_timeout};"
         + ("KeepAlive=1;" if keepalive else "")
         + security
