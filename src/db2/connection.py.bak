@@ -19,21 +19,13 @@ def build_connection_string(config: Dict[str, Any]) -> str:
     if not username or not password:
         raise ValueError("Username and password are required for DB2 connection")
     
-    # Get optional connection parameters with defaults
-    # KeepAlive helps prevent idle connections from being dropped by firewalls
-    # ConnectTimeout ensures connection attempts don't hang indefinitely
-    connect_timeout = config.get("connect_timeout", 30)
-    keepalive = config.get("keepalive", True)
-    
     return (
         f"DATABASE={config['database']};"
         + f"HOSTNAME={config['hostname']};"
         + f"PORT={config['port']};"
         + "PROTOCOL=TCPIP;"
         + f"UID={username};"
-        + f"******;"
-        + f"ConnectTimeout={connect_timeout};"
-        + ("KeepAlive=1;" if keepalive else "")
+        + f"PWD={password};"
         + security
     )
 
