@@ -80,13 +80,16 @@ def _get_jdbc_jars(config: Dict[str, Any]) -> list:
     
     # Verify JAR files exist and validate paths
     for jar in jars:
-        # Normalize and validate path to prevent path traversal attacks
-        normalized_jar = os.path.normpath(jar)
-        # Check for suspicious path components
-        if ".." in normalized_jar.split(os.sep):
+        # Check for path traversal before normalization
+        if ".." in jar:
             raise ValueError(f"Invalid JAR file path (path traversal detected): {jar}")
-        if not os.path.exists(normalized_jar):
+        # Normalize path and check existence
+        normalized_jar = os.path.normpath(jar)
+        if not os.path.isfile(normalized_jar):
             raise FileNotFoundError(f"JDBC driver JAR file not found: {normalized_jar}")
+        # Verify it's a .jar file
+        if not normalized_jar.lower().endswith('.jar'):
+            raise ValueError(f"Invalid file type (expected .jar file): {normalized_jar}")
     
     return jars
 
@@ -173,4 +176,6 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
                 LOGGER.warning("DB connection failed with retryable error (attempt %d/%d): %s", attempt + 1, max_retries, safe_error_str)
     
     # Use sanitized error message in return value to avoid leaking password
-    return False, f"Connection failed: {last_error_sanitized or last_error}", None
+    # If sanitization failed, use generic message
+    error_msg = last_error_sanitized if last_error_sanitized else "Connection failed due to error"
+    return False, f"Connection failed: {error_msg}", None

@@ -55,7 +55,12 @@ with st.expander("1. Connect to DB2", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
         hostname = st.text_input("Hostname", value=os.getenv("DB2_HOST", ""))
-        port = st.number_input("Port", min_value=1, max_value=65535, value=int(os.getenv("DB2_PORT", "50000")))
+        # Safe port parsing with fallback to default
+        try:
+            default_port = int(os.getenv("DB2_PORT", "50000"))
+        except (ValueError, TypeError):
+            default_port = 50000
+        port = st.number_input("Port", min_value=1, max_value=65535, value=default_port)
         database = st.text_input("Database name", value=os.getenv("DB2_DATABASE", ""))
     with col2:
         username = st.text_input("Username", value=os.getenv("DB2_USER", ""))

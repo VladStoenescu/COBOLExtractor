@@ -118,7 +118,7 @@ def test_build_jdbc_url_rejects_missing_or_empty_credentials():
 
 def test_get_jdbc_jars_from_config():
     """Test getting JDBC JAR paths from config"""
-    with patch('os.path.exists', return_value=True):
+    with patch('os.path.isfile', return_value=True):
         config = {
             "jdbc_jar_path": "/path/to/db2jcc.jar",
             "license_jar_path": "/path/to/db2jcc_license_cisuz.jar",
@@ -131,7 +131,7 @@ def test_get_jdbc_jars_from_config():
 
 def test_get_jdbc_jars_from_env():
     """Test getting JDBC JAR paths from environment variables"""
-    with patch('os.path.exists', return_value=True):
+    with patch('os.path.isfile', return_value=True):
         with patch.dict(os.environ, {
             'DB2_JDBC_JAR_PATH': '/env/path/db2jcc.jar',
             'DB2_LICENSE_JAR_PATH': '/env/path/db2jcc_license_cisuz.jar'
@@ -145,7 +145,7 @@ def test_get_jdbc_jars_from_env():
 
 def test_get_jdbc_jars_config_overrides_env():
     """Test that config values override environment variables"""
-    with patch('os.path.exists', return_value=True):
+    with patch('os.path.isfile', return_value=True):
         with patch.dict(os.environ, {
             'DB2_JDBC_JAR_PATH': '/env/path/db2jcc.jar',
             'DB2_LICENSE_JAR_PATH': '/env/path/db2jcc_license_cisuz.jar'
@@ -181,7 +181,7 @@ def test_connection_uses_jaydebeapi():
     mock_connector = Mock()
     mock_connector.connect = Mock(return_value="mock_connection")
     
-    with patch('os.path.exists', return_value=True):
+    with patch('os.path.isfile', return_value=True):
         config = {
             "database": "TESTDB",
             "hostname": "localhost",
@@ -218,7 +218,7 @@ def test_connection_handles_error():
     mock_connector = Mock()
     mock_connector.connect = Mock(side_effect=Exception("Connection error"))
     
-    with patch('os.path.exists', return_value=True):
+    with patch('os.path.isfile', return_value=True):
         config = {
             "database": "TESTDB",
             "hostname": "localhost",
@@ -248,7 +248,7 @@ def test_connection_retries_on_transient_errors():
         ]
     )
     
-    with patch('os.path.exists', return_value=True):
+    with patch('os.path.isfile', return_value=True):
         config = {
             "database": "TESTDB",
             "hostname": "localhost",
@@ -278,7 +278,7 @@ def test_connection_does_not_retry_non_transient_errors():
         side_effect=Exception("SQL30082N Security processing failed")
     )
     
-    with patch('os.path.exists', return_value=True):
+    with patch('os.path.isfile', return_value=True):
         config = {
             "database": "TESTDB",
             "hostname": "localhost",
@@ -308,7 +308,7 @@ def test_connection_respects_max_retries():
         side_effect=Exception("SQL30081N A communication error has been detected. ... *104*")
     )
     
-    with patch('os.path.exists', return_value=True):
+    with patch('os.path.isfile', return_value=True):
         config = {
             "database": "TESTDB",
             "hostname": "localhost",
