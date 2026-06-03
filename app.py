@@ -1,3 +1,4 @@
+import csv
 import io
 from pathlib import Path
 
@@ -10,12 +11,14 @@ from src.copybook.validators import validate_parse_result
 from src.db2.connection import test_connection
 from src.db2.extractor import extract_data
 from src.db2.metadata import get_schemas, get_tables, get_table_columns, preview_table
-from src.export.csv_writer import default_filename, write_csv
+from src.export.csv_writer import default_filename
 from src.mapping.mapper import auto_map_fields
 from src.utils.logger import get_logger
 
 LOGGER = get_logger(__name__)
 SETTINGS = yaml.safe_load(Path("config/settings.yaml").read_text())
+DEFAULT_FILENAME_SCHEMA = "TABLE"
+DEFAULT_FILENAME_TABLE = "DATA"
 
 st.set_page_config(page_title="COBOL Extractor", layout="wide")
 st.title("COBOL Extractor")
@@ -106,11 +109,11 @@ with st.expander("3. Load Copybook"):
     if st.button("Parse copybook"):
         text = ""
         if uploaded is not None:
-            text = uploaded.getvalue().decode("utf-8", errors="ignore")
+            text = uploaded.getvalue().decode("utf-8", errors="replace")
         elif pasted.strip():
             text = pasted
         elif selected_file:
-            text = (copybook_folder / selected_file).read_text(encoding="utf-8", errors="ignore")
+            text = (copybook_folder / selected_file).read_text(encoding="utf-8", errors="replace")
 
         result = parse_copybook(text)
         issues = validate_parse_result(result)
@@ -180,14 +183,12 @@ with st.expander("7. Download CSV"):
         separator = st.selectbox("Separator", [",", ";", "\t"])
         include_header = st.checkbox("Include header", value=True)
         quote_all = st.checkbox("Quote all fields", value=False)
-        default_name = default_filename(st.session_state.get("schema", "TABLE"), st.session_state.get("table", "DATA"))
+        default_name = default_filename(
+            st.session_state.get("schema", DEFAULT_FILENAME_SCHEMA),
+            st.session_state.get("table", DEFAULT_FILENAME_TABLE),
+        )
         file_name = st.text_input("File name", value=default_name)
 
-        output_path = write_csv(
-            df,
-            filename=file_name,
-            separator=separator,
-            include_header=include_header,
-            quote_all_fields=quote_all,
-        )
-        st.download_button("Download CSV", data=Path(output_path).read_bytes(), file_name=file_name, mime="text/csv")
+        quoting = csv.QUOTE_ALL if quote_all else csv.QUOTE_MINIMAL
+        csv_data = df.to_csv(index=False, sep=separator, header=include_header, quoting=quoting).encode("utf-8")
+        st.download_button("Download CSV", data=csv_data, file_name=file_name, mime="text/csv")

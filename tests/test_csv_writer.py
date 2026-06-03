@@ -15,3 +15,9 @@ def test_write_csv_creates_file(tmp_path):
     output = write_csv(df, output_dir=str(tmp_path), filename="out.csv")
     assert (tmp_path / "out.csv").exists()
     assert "A,B" in (tmp_path / "out.csv").read_text()
+
+
+def test_write_csv_sanitizes_filename(tmp_path):
+    df = pd.DataFrame([{"A": 1}])
+    output = write_csv(df, output_dir=str(tmp_path), filename="../unsafe.csv")
+    assert output == str(tmp_path / "unsafe.csv")

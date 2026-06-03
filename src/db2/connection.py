@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional, Tuple
 
-from src.utils.logger import get_logger, sanitize_connection_config
+from src.utils.logger import get_logger
 
 LOGGER = get_logger(__name__)
 
@@ -17,8 +17,6 @@ def build_connection_string(config: Dict[str, Any]) -> str:
         + f"HOSTNAME={config['hostname']};"
         + f"PORT={config['port']};"
         + "PROTOCOL=TCPIP;"
-        + f"UID={config['username']};"
-        + "{}={};".format("PW" + "D", config["password"])
         + security
     )
 
@@ -28,11 +26,10 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
     if connector is None:
         return False, "ibm_db is not installed or failed to load.", None
 
-    safe_config = sanitize_connection_config(config)
-    LOGGER.info("DB connection attempt for host=%s db=%s config=%s", config.get("hostname"), config.get("database"), safe_config)
+    LOGGER.info("DB connection attempt")
 
     try:
-        conn = connector.connect(build_connection_string(config), "", "")
+        conn = connector.connect(build_connection_string(config), config.get("username", ""), config.get("password", ""))
         return True, "Connection successful", conn
     except Exception as exc:  # pragma: no cover
         LOGGER.error("DB connection failed: %s", exc)

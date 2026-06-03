@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -21,8 +22,11 @@ def write_csv(
 ) -> str:
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     filename = filename or default_filename("EXTRACT", "RESULT")
-    output_path = Path(output_dir) / filename
+    safe_filename = Path(filename).name
+    if not safe_filename.lower().endswith(".csv"):
+        safe_filename = f"{safe_filename}.csv"
+    output_path = Path(output_dir) / safe_filename
 
-    quoting = 1 if quote_all_fields else 0
+    quoting = csv.QUOTE_ALL if quote_all_fields else csv.QUOTE_MINIMAL
     df.to_csv(output_path, sep=separator, encoding=encoding, index=False, header=include_header, quoting=quoting)
     return str(output_path)

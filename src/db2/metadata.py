@@ -1,5 +1,7 @@
 from typing import Any, Dict, List
 
+from src.security.sql_validator import validate_identifier
+
 
 def _fetch_rows(conn: Any, query: str) -> List[Dict[str, Any]]:
     cursor = conn.cursor()
@@ -15,6 +17,7 @@ def get_schemas(conn: Any) -> List[str]:
 
 
 def get_tables(conn: Any, schema: str) -> List[str]:
+    validate_identifier(schema, "schema")
     cursor = conn.cursor()
     cursor.execute(
         "SELECT RTRIM(TABNAME) AS TABLE_NAME FROM SYSCAT.TABLES WHERE TABSCHEMA = ? AND TYPE = 'T' ORDER BY TABLE_NAME",
@@ -24,6 +27,8 @@ def get_tables(conn: Any, schema: str) -> List[str]:
 
 
 def get_table_columns(conn: Any, schema: str, table: str) -> List[Dict[str, Any]]:
+    validate_identifier(schema, "schema")
+    validate_identifier(table, "table")
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -49,4 +54,6 @@ def get_table_columns(conn: Any, schema: str, table: str) -> List[Dict[str, Any]
 
 
 def preview_table(conn: Any, schema: str, table: str, limit: int = 100) -> List[Dict[str, Any]]:
+    validate_identifier(schema, "schema")
+    validate_identifier(table, "table")
     return _fetch_rows(conn, f'SELECT * FROM "{schema.upper()}"."{table.upper()}" FETCH FIRST {int(limit)} ROWS ONLY')

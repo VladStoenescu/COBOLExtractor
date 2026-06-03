@@ -2,7 +2,7 @@ from typing import Any, Iterable, List, Optional
 
 import pandas as pd
 
-from src.security.sql_validator import validate_where_clause
+from src.security.sql_validator import validate_identifier, validate_where_clause
 
 
 def extract_data(
@@ -15,6 +15,10 @@ def extract_data(
     batch_size: int = 1000,
 ) -> pd.DataFrame:
     validate_where_clause(where_clause)
+    validate_identifier(schema, "schema")
+    validate_identifier(table, "table")
+    for column in columns or []:
+        validate_identifier(column, "column")
 
     projected = ", ".join([f'"{c}"' for c in columns]) if columns else "*"
     query = f'SELECT {projected} FROM "{schema.upper()}"."{table.upper()}"'

@@ -7,6 +7,12 @@ LINE_RE = re.compile(
     r"^\s*(\d{2})\s+([A-Z0-9-]+)(?:\s+REDEFINES\s+([A-Z0-9-]+))?(?:\s+PIC\s+([SX9V\(\)0-9]+))?(?:\s+(COMP-3|COMP|BINARY|DISPLAY))?(?:\s+OCCURS\s+(\d+)\s+TIMES)?\.?\s*$",
     re.IGNORECASE,
 )
+DEFAULT_USAGE = "DISPLAY"
+
+
+def is_comment_line(line: str) -> bool:
+    stripped = line.strip()
+    return not stripped or stripped.startswith("*") or stripped.startswith("*>")
 
 
 def _parse_pic(pic: str, usage: str) -> Tuple[str, int, int, bool]:
@@ -49,9 +55,9 @@ def parse_copybook(text: str) -> Dict[str, List[Dict]]:
     errors: List[str] = []
 
     for idx, line in enumerate(text.splitlines(), start=1):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("*") or stripped.startswith("*>"):
+        if is_comment_line(line):
             continue
+        stripped = line.strip()
 
         m = LINE_RE.match(stripped)
         if not m:
@@ -71,10 +77,10 @@ def parse_copybook(text: str) -> Dict[str, List[Dict]]:
             errors.append(f"Line {idx}: missing PIC clause for {field_name}")
             continue
 
-        usage = (usage or "DISPLAY").upper()
+        usage = (usage or DEFAULT_USAGE).upper()
         try:
             dtype, length, decimals, signed = _parse_pic(pic, usage)
-        except Exception:
+        except (ValueError, TypeError):
             warnings.append(f"Line {idx}: unsupported PIC format for {field_name}")
             continue
 

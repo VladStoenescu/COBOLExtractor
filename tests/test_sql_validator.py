@@ -1,6 +1,6 @@
 import pytest
 
-from src.security.sql_validator import validate_where_clause
+from src.security.sql_validator import validate_identifier, validate_where_clause
 
 
 def test_validate_where_clause_allows_safe_expression():
@@ -11,3 +11,13 @@ def test_validate_where_clause_allows_safe_expression():
 def test_validate_where_clause_rejects_unsafe_expression(clause):
     with pytest.raises(ValueError):
         validate_where_clause(clause)
+
+
+def test_validate_identifier_allows_safe_names():
+    validate_identifier("CUSTOMER_MASTER", "table")
+
+
+@pytest.mark.parametrize("name", ["", "123TABLE", "TAB-NAME", "TABLE;DROP", "TAB NAME"])
+def test_validate_identifier_rejects_invalid_names(name):
+    with pytest.raises(ValueError):
+        validate_identifier(name, "table")
