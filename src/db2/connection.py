@@ -41,6 +41,6 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
         conn = connector.connect(build_connection_string(config), "", "")
         return True, "Connection successful", conn
     except Exception as exc:  # pragma: no cover
-        # Log error without exposing connection string
-        LOGGER.error("DB connection failed")
+        # Log error with exception details but without connection string
+        LOGGER.error("DB connection failed: %s", str(exc))
         return False, f"Connection failed: {exc}", None

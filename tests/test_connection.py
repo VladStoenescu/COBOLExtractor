@@ -38,6 +38,7 @@ def test_build_connection_string_with_ssl():
 
 def test_build_connection_string_rejects_empty_credentials():
     """Empty credentials should raise ValueError"""
+    # Both missing
     config = {
         "database": "TESTDB",
         "hostname": "localhost",
@@ -45,6 +46,26 @@ def test_build_connection_string_rejects_empty_credentials():
     }
     with pytest.raises(ValueError, match="Username and password are required"):
         build_connection_string(config)
+    
+    # Only username
+    config_no_password = {
+        "database": "TESTDB",
+        "hostname": "localhost",
+        "port": 50000,
+        "username": "testuser",
+    }
+    with pytest.raises(ValueError, match="Username and password are required"):
+        build_connection_string(config_no_password)
+    
+    # Only password
+    config_no_username = {
+        "database": "TESTDB",
+        "hostname": "localhost",
+        "port": 50000,
+        "password": "testpass",
+    }
+    with pytest.raises(ValueError, match="Username and password are required"):
+        build_connection_string(config_no_username)
 
 
 def test_connection_passes_empty_strings_to_connector():
