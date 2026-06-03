@@ -12,11 +12,20 @@ except Exception:  # pragma: no cover
 
 def build_connection_string(config: Dict[str, Any]) -> str:
     security = "SECURITY=SSL;" if config.get("ssl_enabled") else ""
+    
+    # Validate credentials are provided (check for None or empty string)
+    username = config.get("username")
+    password = config.get("password")
+    if not username or not password:
+        raise ValueError("Username and password are required for DB2 connection")
+    
     return (
         f"DATABASE={config['database']};"
         + f"HOSTNAME={config['hostname']};"
         + f"PORT={config['port']};"
         + "PROTOCOL=TCPIP;"
+        + f"UID={username};"
+        + f"PWD={password};"
         + security
     )
 
@@ -29,8 +38,9 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
     LOGGER.info("DB connection attempt")
 
     try:
-        conn = connector.connect(build_connection_string(config), config.get("username", ""), config.get("password", ""))
+        conn = connector.connect(build_connection_string(config), "", "")
         return True, "Connection successful", conn
     except Exception as exc:  # pragma: no cover
-        LOGGER.error("DB connection failed: %s", exc)
+        # Log error with exception details but without connection string
+        LOGGER.error("DB connection failed: %s", str(exc))
         return False, f"Connection failed: {exc}", None
