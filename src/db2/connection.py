@@ -78,10 +78,15 @@ def _get_jdbc_jars(config: Dict[str, Any]) -> list:
             "or DB2_JDBC_JAR_PATH and DB2_LICENSE_JAR_PATH environment variables."
         )
     
-    # Verify JAR files exist
+    # Verify JAR files exist and validate paths
     for jar in jars:
-        if not os.path.exists(jar):
-            raise FileNotFoundError(f"JDBC driver JAR file not found: {jar}")
+        # Normalize and validate path to prevent path traversal attacks
+        normalized_jar = os.path.normpath(jar)
+        # Check for suspicious path components
+        if ".." in normalized_jar.split(os.sep):
+            raise ValueError(f"Invalid JAR file path (path traversal detected): {jar}")
+        if not os.path.exists(normalized_jar):
+            raise FileNotFoundError(f"JDBC driver JAR file not found: {normalized_jar}")
     
     return jars
 
@@ -107,6 +112,7 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
     username = config.get("username", "")
     
     last_error = None
+    last_error_sanitized = None
     
     for attempt in range(max_retries):
         if attempt > 0:
@@ -143,17 +149,20 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
             error_str = str(exc)
             # Sanitize error message to remove any password that might be present
             safe_error_str = _sanitize_error_message(error_str, password)
+            last_error_sanitized = safe_error_str
             
             # Check if this is a transient error that we should retry
             # SQL30081N with error code 104 (connection reset) is retryable
             # Also retry on other common transient network errors
-            is_retryable = any(code in error_str for code in [
+            # Use lowercase comparison for consistency
+            error_lower = error_str.lower()
+            is_retryable = any(code.lower() in error_lower for code in [
                 "SQL30081N",  # Communication error
                 "SQL1042C",   # Unexpected system error
                 "SQL30108N",  # Connection failed
                 "*104*",      # Connection reset by peer
                 "connection reset",  # Generic connection reset
-                "Connection refused",  # Connection refused
+                "connection refused",  # Connection refused
             ])
             
             if not is_retryable or attempt == max_retries - 1:
@@ -163,4 +172,5 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
             else:
                 LOGGER.warning("DB connection failed with retryable error (attempt %d/%d): %s", attempt + 1, max_retries, safe_error_str)
     
-    return False, f"Connection failed: {last_error}", None
+    # Use sanitized error message in return value to avoid leaking password
+    return False, f"Connection failed: {last_error_sanitized or last_error}", None
