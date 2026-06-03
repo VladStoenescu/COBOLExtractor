@@ -1,0 +1,4 @@
+app_name: COBOL Extractor
+preview_limit: 20
+default_batch_size: 1000
+copybook_folder: sample/copybooks
