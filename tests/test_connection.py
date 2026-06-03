@@ -36,15 +36,15 @@ def test_build_connection_string_with_ssl():
     assert "SECURITY=SSL;" in conn_str
 
 
-def test_build_connection_string_handles_empty_credentials():
+def test_build_connection_string_rejects_empty_credentials():
+    """Empty credentials should raise ValueError"""
     config = {
         "database": "TESTDB",
         "hostname": "localhost",
         "port": 50000,
     }
-    conn_str = build_connection_string(config)
-    assert "UID=;" in conn_str
-    assert "PWD=;" in conn_str
+    with pytest.raises(ValueError, match="Username and password are required"):
+        build_connection_string(config)
 
 
 def test_connection_passes_empty_strings_to_connector():

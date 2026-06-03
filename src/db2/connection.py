@@ -14,6 +14,11 @@ def build_connection_string(config: Dict[str, Any]) -> str:
     security = "SECURITY=SSL;" if config.get("ssl_enabled") else ""
     username = config.get("username", "")
     password = config.get("password", "")
+    
+    # Validate credentials are provided
+    if not username or not password:
+        raise ValueError("Username and password are required for DB2 connection")
+    
     return (
         f"DATABASE={config['database']};"
         + f"HOSTNAME={config['hostname']};"
@@ -36,5 +41,6 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
         conn = connector.connect(build_connection_string(config), "", "")
         return True, "Connection successful", conn
     except Exception as exc:  # pragma: no cover
-        LOGGER.error("DB connection failed: %s", exc)
+        # Log error without exposing connection string
+        LOGGER.error("DB connection failed")
         return False, f"Connection failed: {exc}", None
