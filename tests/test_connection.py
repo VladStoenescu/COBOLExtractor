@@ -36,8 +36,8 @@ def test_build_connection_string_with_ssl():
     assert "SECURITY=SSL;" in conn_str
 
 
-def test_build_connection_string_rejects_empty_credentials():
-    """Empty credentials should raise ValueError"""
+def test_build_connection_string_rejects_missing_or_empty_credentials():
+    """Missing or empty credentials should raise ValueError"""
     # Both missing
     config = {
         "database": "TESTDB",
@@ -66,6 +66,28 @@ def test_build_connection_string_rejects_empty_credentials():
     }
     with pytest.raises(ValueError, match="Username and password are required"):
         build_connection_string(config_no_username)
+    
+    # Empty username
+    config_empty_username = {
+        "database": "TESTDB",
+        "hostname": "localhost",
+        "port": 50000,
+        "username": "",
+        "password": "testpass",
+    }
+    with pytest.raises(ValueError, match="Username and password are required"):
+        build_connection_string(config_empty_username)
+    
+    # Empty password
+    config_empty_password = {
+        "database": "TESTDB",
+        "hostname": "localhost",
+        "port": 50000,
+        "username": "testuser",
+        "password": "",
+    }
+    with pytest.raises(ValueError, match="Username and password are required"):
+        build_connection_string(config_empty_password)
 
 
 def test_connection_passes_empty_strings_to_connector():

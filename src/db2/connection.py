@@ -12,10 +12,10 @@ except Exception:  # pragma: no cover
 
 def build_connection_string(config: Dict[str, Any]) -> str:
     security = "SECURITY=SSL;" if config.get("ssl_enabled") else ""
-    username = config.get("username", "")
-    password = config.get("password", "")
     
-    # Validate credentials are provided
+    # Validate credentials are provided (check for None or empty string)
+    username = config.get("username")
+    password = config.get("password")
     if not username or not password:
         raise ValueError("Username and password are required for DB2 connection")
     
