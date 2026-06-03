@@ -1,10 +1,12 @@
 import csv
 import io
+import os
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 import yaml
+from dotenv import load_dotenv
 
 from src.copybook.parser import parse_copybook
 from src.copybook.validators import validate_parse_result
@@ -14,6 +16,9 @@ from src.db2.metadata import get_schemas, get_tables, get_table_columns, preview
 from src.export.csv_writer import default_filename
 from src.mapping.mapper import auto_map_fields
 from src.utils.logger import get_logger
+
+# Load environment variables from .env file
+load_dotenv()
 
 LOGGER = get_logger(__name__)
 SETTINGS = yaml.safe_load(Path("config/settings.yaml").read_text())
@@ -49,13 +54,27 @@ for step in steps:
 with st.expander("1. Connect to DB2", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
-        hostname = st.text_input("Hostname")
-        port = st.number_input("Port", min_value=1, max_value=65535, value=50000)
-        database = st.text_input("Database name")
+        hostname = st.text_input("Hostname", value=os.getenv("DB2_HOST", ""))
+        port = st.number_input("Port", min_value=1, max_value=65535, value=int(os.getenv("DB2_PORT", "50000")))
+        database = st.text_input("Database name", value=os.getenv("DB2_DATABASE", ""))
     with col2:
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        ssl_enabled = st.checkbox("SSL enabled", value=False)
+        username = st.text_input("Username", value=os.getenv("DB2_USER", ""))
+        password = st.text_input("Password", type="password", value=os.getenv("DB2_PASSWORD", ""))
+        ssl_enabled = st.checkbox("SSL enabled", value=os.getenv("DB2_SSL_ENABLED", "false").lower() == "true")
+    
+    # JDBC configuration
+    with st.expander("JDBC Configuration (Advanced)", expanded=False):
+        jdbc_jar_path = st.text_input(
+            "DB2 JDBC JAR Path",
+            value=os.getenv("DB2_JDBC_JAR_PATH", ""),
+            help="Path to db2jcc.jar file"
+        )
+        license_jar_path = st.text_input(
+            "DB2 License JAR Path",
+            value=os.getenv("DB2_LICENSE_JAR_PATH", ""),
+            help="Path to db2jcc_license_cisuz.jar file"
+        )
+        st.info("💡 Set these paths in your .env file or provide them here. Required for JDBC connection.")
 
     if st.button("Test connection"):
         ok, message, conn = test_connection(
@@ -66,6 +85,8 @@ with st.expander("1. Connect to DB2", expanded=True):
                 "username": username,
                 "password": password,
                 "ssl_enabled": ssl_enabled,
+                "jdbc_jar_path": jdbc_jar_path,
+                "license_jar_path": license_jar_path,
             }
         )
         if ok:

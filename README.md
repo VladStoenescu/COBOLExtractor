@@ -4,7 +4,7 @@ Python Streamlit MVP for extracting DB2 table data using COBOL copybook metadata
 
 ## Features
 
-- DB2 connection test and schema/table browsing
+- DB2 connection test and schema/table browsing via JDBC
 - Table metadata and preview
 - Copybook upload/paste/folder selection
 - Copybook parsing with warnings for unsupported syntax
@@ -24,9 +24,35 @@ streamlit run app.py
 
 ## Configuration
 
-1. Copy `.env.example` to `.env` and fill DB2 values.
-2. Optional app settings in `config/settings.yaml`.
-3. Place reusable copybooks in `sample/copybooks/`.
+### DB2 JDBC Connection
+
+This application uses JDBC via JayDeBeApi to connect to DB2 databases. You'll need:
+
+1. **DB2 JDBC Driver JARs**: Download these files from IBM:
+   - `db2jcc.jar`
+   - `db2jcc_license_cisuz.jar`
+
+2. **Environment Variables**: Copy `.env.example` to `.env` and configure:
+   ```bash
+   DB2_HOST=your-db2-host
+   DB2_PORT=50000
+   DB2_DATABASE=your-database
+   DB2_USER=your-username
+   DB2_PASSWORD=your-password
+   DB2_SSL_ENABLED=false
+   DB2_JDBC_JAR_PATH=/path/to/db2jcc.jar
+   DB2_LICENSE_JAR_PATH=/path/to/db2jcc_license_cisuz.jar
+   ```
+
+3. **Java Runtime**: Ensure Java is installed (required by JPype1 for JDBC):
+   ```bash
+   java -version
+   ```
+
+### Other Configuration
+
+1. Optional app settings in `config/settings.yaml`.
+2. Place reusable copybooks in `sample/copybooks/`.
 
 ## Testing
 
