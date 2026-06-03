@@ -1,4 +1,5 @@
 from typing import Dict, Any, Optional, Tuple
+import re
 import time
 
 from src.utils.logger import get_logger
@@ -9,6 +10,13 @@ try:
     import ibm_db
 except Exception:  # pragma: no cover
     ibm_db = None
+
+
+def _sanitize_error_message(message: str, password: str) -> str:
+    """Remove password from error message if present"""
+    if password and password in message:
+        message = message.replace(password, "***")
+    return message
 
 
 def build_connection_string(config: Dict[str, Any]) -> str:
@@ -47,6 +55,7 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
     # Get retry configuration
     max_retries = config.get("connection_retries", 3)
     retry_delay = config.get("retry_delay_seconds", 2)
+    password = config.get("password", "")
     
     last_error = None
     
@@ -65,6 +74,8 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
         except Exception as exc:  # pragma: no cover
             last_error = exc
             error_str = str(exc)
+            # Sanitize error message to remove any password that might be present
+            safe_error_str = _sanitize_error_message(error_str, password)
             
             # Check if this is a transient error that we should retry
             # SQL30081N with error code 104 (connection reset) is retryable
@@ -78,9 +89,9 @@ def test_connection(config: Dict[str, Any], connector: Optional[Any] = None) -> 
             
             if not is_retryable or attempt == max_retries - 1:
                 # Don't retry if not a transient error or if this was the last attempt
-                LOGGER.error("DB connection failed: %s", error_str)
+                LOGGER.error("DB connection failed: %s", safe_error_str)
                 break
             else:
-                LOGGER.warning(f"DB connection failed with retryable error (attempt {attempt + 1}/{max_retries}): {error_str}")
+                LOGGER.warning(f"DB connection failed with retryable error (attempt {attempt + 1}/{max_retries}): {safe_error_str}")
     
     return False, f"Connection failed: {last_error}", None
